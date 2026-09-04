@@ -1,0 +1,10 @@
+{
+  "name": "kill-a-tower",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Kill a Tower — dev-only test suite. The runtime is buildless vanilla ES modules; this package.json exists ONLY to run the Node test runner and declares NO runtime dependencies.",
+  "scripts": {
+    "test": "node --test"
+  }
+}
