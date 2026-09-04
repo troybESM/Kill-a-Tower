@@ -24,3 +24,6 @@ Thumbs.db
 # Build artifacts (none expected, but guard against accidental commits)
 dist/
 build/
+
+# Agent task-state (never part of the deliverable)
+.agents/
