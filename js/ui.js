@@ -38,6 +38,15 @@ function floatText(anchorEl, text, kind) {
   setTimeout(() => f.remove(), 1000);
 }
 
+// Keyword badges rendered on a card face, driven purely by card flags.
+function cardBadges(card) {
+  const badges = [];
+  if (card.innate) badges.push('<span class="card-badge badge-innate">Innate</span>');
+  if (card.retain) badges.push('<span class="card-badge badge-retain">Retain</span>');
+  if (card.exhaust) badges.push('<span class="card-badge badge-exhaust">Exhaust</span>');
+  return badges.length ? `<div class="card-badges">${badges.join('')}</div>` : '';
+}
+
 // ---------- combat interaction state ----------
 let selectedHandIndex = null; // card awaiting a target
 
@@ -139,6 +148,9 @@ function buildCombatEvents() {
     onEnemyPoisoned: (enemy, n) => floatEnemy(enemy, `+${n}☠`, 'poison'),
     onEnemyDebuff: (enemy, name, n) => floatEnemy(enemy, `${name} ${n}`, 'poison'),
     onEnemyDied: (enemy) => floatEnemy(enemy, 'DEAD', 'poison'),
+    onMultiHit: (enemy, hits) => { flashEnemy(enemy); floatEnemy(enemy, `×${hits}`, 'damage'); },
+    onDetonate: (enemy, dmg) => { flashEnemy(enemy); floatEnemy(enemy, `💥 ${dmg}`, 'poison'); },
+    onCardExhausted: (card) => toast(`${card.name} exhausted`),
     onPlayerDamaged: (n) => { floatPlayer(`-${n}`, 'damage'); shakePlayer(); },
     onPlayerBlock: (n) => floatPlayer(`+${n}🛡`, 'block'),
     onPlayerDebuff: (name, n) => floatPlayer(`${name} ${n}`, 'damage'),
@@ -263,6 +275,7 @@ function renderHand() {
       <div class="card-name">${card.name}</div>
       <div class="card-art">${card.art}</div>
       <div class="card-text">${card.text()}</div>
+      ${cardBadges(card)}
       <div class="card-type">${card.type}</div>
     `;
     node.addEventListener('click', () => onCardClicked(i));
@@ -359,6 +372,7 @@ function renderReward() {
       <div class="card-name">${card.name}</div>
       <div class="card-art">${card.art}</div>
       <div class="card-text">${card.text()}</div>
+      ${cardBadges(card)}
       <div class="card-type">${card.type}</div>
     `;
     node.addEventListener('click', () => {
@@ -397,6 +411,7 @@ function renderDeckOverlay() {
       <div class="card-name">${card.name}${counts[cardId] > 1 ? ` ×${counts[cardId]}` : ''}</div>
       <div class="card-art">${card.art}</div>
       <div class="card-text">${card.text()}</div>
+      ${cardBadges(card)}
       <div class="card-type">${card.type}</div>
     `;
     wrap.appendChild(node);
@@ -412,6 +427,20 @@ export function initUI() {
   $('#view-deck-btn').addEventListener('click', renderDeckOverlay);
   $('#close-overlay-btn').addEventListener('click', () => $('#deck-overlay').classList.remove('active'));
   $('#skip-reward-btn').addEventListener('click', () => { advanceNode(); renderMap(); });
+
+  // Minimal, harmless debug seam used by the headless smoke test to re-render
+  // the combat view and play a card by hand index. Not referenced by gameplay.
+  if (typeof window !== 'undefined') {
+    window.__kat = {
+      render: renderCombat,
+      play: (handIndex, enemyIdx) => {
+        const c = state.combat;
+        const target = enemyIdx != null ? c.enemies[enemyIdx] : null;
+        Combat.playCard(handIndex, target, combatEvents);
+        renderCombat();
+      },
+    };
+  }
 
   showScreen('title-screen');
 }
