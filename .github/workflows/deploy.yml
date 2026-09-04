@@ -1,0 +1,96 @@
+name: Deploy Kill a Tower to S3
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-s3
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AWS_REGION: us-east-1
+  S3_BUCKET: kill-a-tower
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Stamp cache-buster from commit SHA
+        run: |
+          SHA_SHORT="${GITHUB_SHA::7}"
+          echo "Stamping ?v=$SHA_SHORT into index.html"
+          sed -i -E "s/\?v=[A-Za-z0-9._-]+/?v=$SHA_SHORT/g" index.html
+          # Cache-buster placeholders are optional; do not fail the build if none exist.
+          if grep -o "?v=$SHA_SHORT" index.html | head -1; then
+            echo "cache-buster stamped"
+          else
+            echo "no ?v= placeholder present in index.html; skipping stamp verification"
+          fi
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          role-session-name: gha-deploy-kill-a-tower
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Provision S3 bucket (idempotent)
+        run: |
+          set -euo pipefail
+
+          # Create the bucket if it does not already exist.
+          # For us-east-1 do NOT pass a LocationConstraint (it errors in that region).
+          if aws s3api head-bucket --bucket "${S3_BUCKET}" 2>/dev/null; then
+            echo "Bucket ${S3_BUCKET} already exists"
+          else
+            echo "Creating bucket ${S3_BUCKET}"
+            aws s3api create-bucket --bucket "${S3_BUCKET}" --region "${AWS_REGION}"
+          fi
+
+          # Configure static website hosting with index.html as the index document.
+          aws s3 website "s3://${S3_BUCKET}/" --index-document index.html
+
+          # Disable the bucket's public-access block so a public-read policy can apply.
+          # Block settings must be relaxed BEFORE the public-read policy is applied.
+          aws s3api put-public-access-block \
+            --bucket "${S3_BUCKET}" \
+            --public-access-block-configuration \
+            BlockPublicAcls=false,IgnorePublicAcls=false,BlockPublicPolicy=false,RestrictPublicBuckets=false
+
+          # Apply a public-read bucket policy for s3:GetObject.
+          aws s3api put-bucket-policy --bucket "${S3_BUCKET}" --policy '{
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Sid": "PublicReadGetObject",
+                "Effect": "Allow",
+                "Principal": "*",
+                "Action": "s3:GetObject",
+                "Resource": "arn:aws:s3:::kill-a-tower/*"
+              }
+            ]
+          }'
+
+      - name: Deploy to S3
+        run: |
+          aws s3 sync . "s3://${S3_BUCKET}/" \
+            --exclude ".*" \
+            --exclude ".git/*" \
+            --exclude ".github/*" \
+            --exclude "*.md" \
+            --delete \
+            --cache-control "max-age=60"
+
+      - name: Summary
+        run: |
+          echo "Deployed commit ${GITHUB_SHA::7} to s3://${S3_BUCKET}/" >> "$GITHUB_STEP_SUMMARY"
+          echo "Live: http://${S3_BUCKET}.s3-website-${AWS_REGION}.amazonaws.com" >> "$GITHUB_STEP_SUMMARY"
