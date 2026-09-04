@@ -237,10 +237,34 @@ html, body {
 .card-type { font-size: .68rem; color: var(--muted); text-align: center; text-transform: uppercase; letter-spacing: 1px; }
 .card .kw-poison { color: var(--accent); font-weight: 700; }
 .card .kw-block { color: var(--block); font-weight: 700; }
+.card .kw-exhaust { color: var(--danger); font-weight: 700; letter-spacing: .3px; }
+.card .kw-retain { color: var(--gold); font-weight: 700; letter-spacing: .3px; }
+.card .kw-innate { color: var(--accent2); font-weight: 700; letter-spacing: .3px; }
+
+/* Keyword badges on the card face (data-driven from card flags). */
+.card-badges { display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; margin: 2px 0 0; }
+.card-badge {
+  font-size: .58rem; font-weight: 800; text-transform: uppercase; letter-spacing: .5px;
+  padding: 1px 6px; border-radius: 8px; border: 1px solid var(--border);
+}
+.badge-exhaust { color: var(--danger); border-color: var(--danger); }
+.badge-retain { color: var(--gold); border-color: var(--gold); }
+.badge-innate { color: var(--accent2); border-color: var(--accent2); }
 
 .attack-border { border-top: 4px solid var(--danger); }
 .skill-border { border-top: 4px solid var(--accent2); }
 .power-border { border-top: 4px solid var(--gold); }
+
+/* Fatal start-up error (content-count guard, spec Req 2.3/4.3). */
+.fatal-error {
+  max-width: 640px; margin: 12vh auto; padding: 28px; text-align: center;
+  background: var(--panel); border: 2px solid var(--danger); border-radius: 14px;
+}
+.fatal-error h1 { color: var(--danger); margin-bottom: 10px; }
+.fatal-error pre {
+  text-align: left; white-space: pre-wrap; background: var(--bg2); color: var(--ink);
+  border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-top: 14px; font-size: .85rem;
+}
 
 /* ---------- Reward / Relic choice ---------- */
 #reward-screen, #relic-screen, #gameover-screen { align-items: center; justify-content: center; text-align: center; }

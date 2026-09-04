@@ -16,7 +16,7 @@ Play as **The Silent**: a poison-and-slyness rogue who stacks toxins, dodges wit
 This build is the first vertical slice — a complete, replayable run loop:
 
 - **One character:** The Silent (70 HP, 3 energy/turn, poison + agility deck).
-- **17 cards** — strikes, defends, poison appliers (Deadly Poison, Bouncing Flask, Catalyst), sly cards (Backstab, Blade Dance, Adrenaline), and powers (Noxious Fumes, Wraith Form).
+- **24 cards** — strikes, defends, poison appliers (Deadly Poison, Bouncing Flask, Catalyst), sly cards (Backstab, Blade Dance, Adrenaline), and powers (Noxious Fumes, Wraith Form), plus cards showcasing the richer mechanics below (Flurry of Knives, Venom Lash, Venom Burst, Envenomed Edge, Finisher, Preparation, Reflex).
 - **3 regular enemies** (Cultist, Fang Spider, Tower Guard) and **2 bosses** (The Hex Queen, The Iron Colossus — one is chosen at random).
 - **Single-path map:** `Starting Relic → Battle I → Battle II → Boss`.
 - **5 random starting relics** offered at the first node (chosen from a pool of 7).
@@ -55,6 +55,32 @@ js/
 - **Block** absorbs incoming damage and resets each turn. **Dexterity** increases block gained; **Strength** increases attack damage.
 - **Weak** reduces a combatant's attack damage by 25%; **Vulnerable** increases damage taken by 50%.
 - Enemies telegraph their next move via **intents** shown above them.
+
+### Card keywords & mechanics
+
+All of the following are **data-driven** — they are expressed via card flags and the `effects[]` op array and interpreted in `js/combat.js`, with no per-card logic in the UI:
+
+- **Multi-hit** — strikes several times, recomputing Strength/Vulnerable/Weak per hit (e.g. Flurry of Knives).
+- **Exhaust** — the card leaves play into the exhaust pile instead of the discard pile, so it is gone for the rest of combat (e.g. Venom Burst).
+- **Retain** — the card is kept in hand at end of turn instead of being discarded (e.g. Preparation, Reflex).
+- **Innate** — the card is guaranteed to be in your opening hand (e.g. Backstab).
+- **Conditional** — effects that branch on combat state, e.g. "if the target is Poisoned…" or execute thresholds (e.g. Envenomed Edge, Finisher).
+- **Poison payoff** — cards that scale with the target's poison stacks or **detonate** poison for a burst (e.g. Venom Lash deals damage per poison stack; Venom Burst consumes all poison at once).
+- **Upgrades** — every card has an upgraded variant defined in data; a pure resolver (`getCard(id, { upgraded: true })` / `upgradeCard(id)`) returns the upgraded definition without mutating `CARD_DB`. The mechanism lives in data + engine; a UI upgrade node is a future follow-up.
+
+## Testing
+
+The runtime has **no build step** — but a small **dev-only** test suite guards the combat engine. It uses Node's built-in test runner (`node:test`) with **zero dependencies** (`package.json` declares no runtime or dev deps).
+
+```sh
+node --test      # run the suite from the repo root
+# or
+npm test         # same thing (package.json "test" script)
+```
+
+- **Deploy gate.** CI runs `node --test` in `.github/workflows/deploy.yml` **before** the S3 sync, so a red suite blocks deployment.
+- **Dev-only, never shipped.** The tests, `package.json`, `package-lock.json`, and `node_modules/` are all excluded from the `aws s3 sync`, so nothing test-related is uploaded to S3. The runtime deployed to the bucket is exactly the buildless vanilla ES-module game.
+- **Seeded / reproducible runs.** Combat uses a seeded RNG (`js/rng.js`), so a given seed produces the same shuffles and rolls. The tests rely on this to assert deterministic outcomes.
 
 ## Relics (pool of 7; you pick 1 of 5 offered)
 

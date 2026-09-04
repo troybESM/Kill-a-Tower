@@ -19,6 +19,20 @@ function showScreen(id) {
   $('#' + id).classList.add('active');
 }
 
+// True only on a local dev/test origin or when explicitly opted-in via `?debug`.
+// Used to gate the window.__kat debug seam so it never attaches on the deployed
+// S3 site while remaining available to the headless smoke server (127.0.0.1).
+function isDebugEnv() {
+  try {
+    const host = window.location?.hostname || '';
+    const isLocal = host === 'localhost' || host === '127.0.0.1' || host === '[::1]' || host === '';
+    const hasDebugFlag = /(?:^|[?&])debug(?:=|&|$)/.test(window.location?.search || '');
+    return isLocal || hasDebugFlag;
+  } catch {
+    return false;
+  }
+}
+
 function toast(msg) {
   let t = $('#toast');
   if (!t) { t = el('div'); t.id = 'toast'; document.body.appendChild(t); }
@@ -36,6 +50,15 @@ function floatText(anchorEl, text, kind) {
   f.style.top = rect.top + 20 + 'px';
   document.body.appendChild(f);
   setTimeout(() => f.remove(), 1000);
+}
+
+// Keyword badges rendered on a card face, driven purely by card flags.
+function cardBadges(card) {
+  const badges = [];
+  if (card.innate) badges.push('<span class="card-badge badge-innate">Innate</span>');
+  if (card.retain) badges.push('<span class="card-badge badge-retain">Retain</span>');
+  if (card.exhaust) badges.push('<span class="card-badge badge-exhaust">Exhaust</span>');
+  return badges.length ? `<div class="card-badges">${badges.join('')}</div>` : '';
 }
 
 // ---------- combat interaction state ----------
@@ -96,7 +119,7 @@ function renderRelicChoice() {
   showScreen('relic-screen');
   const wrap = $('#relic-choices');
   wrap.innerHTML = '';
-  const choices = randomRelicChoices(5);
+  const choices = randomRelicChoices(state.rng, 5);
   for (const r of choices) {
     const card = el('div', 'relic-card', `
       <div class="relic-emoji">${r.emoji}</div>
@@ -118,8 +141,8 @@ let combatEvents = null;
 
 function startFight(fightIndex, isBoss) {
   let enemyIds;
-  if (isBoss) enemyIds = [randomBossId()];
-  else enemyIds = encounterForFight(fightIndex);
+  if (isBoss) enemyIds = [randomBossId(state.rng)];
+  else enemyIds = encounterForFight(fightIndex, state.rng);
 
   Combat.initCombat(enemyIds, isBoss);
   showScreen('combat-screen');
@@ -139,6 +162,9 @@ function buildCombatEvents() {
     onEnemyPoisoned: (enemy, n) => floatEnemy(enemy, `+${n}☠`, 'poison'),
     onEnemyDebuff: (enemy, name, n) => floatEnemy(enemy, `${name} ${n}`, 'poison'),
     onEnemyDied: (enemy) => floatEnemy(enemy, 'DEAD', 'poison'),
+    onMultiHit: (enemy, hits) => { flashEnemy(enemy); floatEnemy(enemy, `×${hits}`, 'damage'); },
+    onDetonate: (enemy, dmg) => { flashEnemy(enemy); floatEnemy(enemy, `💥 ${dmg}`, 'poison'); },
+    onCardExhausted: (card) => toast(`${card.name} exhausted`),
     onPlayerDamaged: (n) => { floatPlayer(`-${n}`, 'damage'); shakePlayer(); },
     onPlayerBlock: (n) => floatPlayer(`+${n}🛡`, 'block'),
     onPlayerDebuff: (name, n) => floatPlayer(`${name} ${n}`, 'damage'),
@@ -263,6 +289,7 @@ function renderHand() {
       <div class="card-name">${card.name}</div>
       <div class="card-art">${card.art}</div>
       <div class="card-text">${card.text()}</div>
+      ${cardBadges(card)}
       <div class="card-type">${card.type}</div>
     `;
     node.addEventListener('click', () => onCardClicked(i));
@@ -340,7 +367,7 @@ function endCombat(result) {
     return;
   }
   // heal a little + card reward
-  state.gold += 15 + Math.floor(Math.random() * 11);
+  state.gold += 15 + state.rng.int(11);
   renderReward();
 }
 
@@ -349,7 +376,7 @@ function renderReward() {
   const wrap = $('#reward-cards');
   wrap.innerHTML = '';
   // 3 random distinct reward cards
-  const pool = [...REWARD_POOL].sort(() => Math.random() - 0.5).slice(0, 3);
+  const pool = state.rng.shuffle(REWARD_POOL).slice(0, 3);
   pool.forEach((cardId) => {
     const card = getCard(cardId);
     const borderCls = card.type === 'attack' ? 'attack-border' : card.type === 'power' ? 'power-border' : 'skill-border';
@@ -359,6 +386,7 @@ function renderReward() {
       <div class="card-name">${card.name}</div>
       <div class="card-art">${card.art}</div>
       <div class="card-text">${card.text()}</div>
+      ${cardBadges(card)}
       <div class="card-type">${card.type}</div>
     `;
     node.addEventListener('click', () => {
@@ -397,6 +425,7 @@ function renderDeckOverlay() {
       <div class="card-name">${card.name}${counts[cardId] > 1 ? ` ×${counts[cardId]}` : ''}</div>
       <div class="card-art">${card.art}</div>
       <div class="card-text">${card.text()}</div>
+      ${cardBadges(card)}
       <div class="card-type">${card.type}</div>
     `;
     wrap.appendChild(node);
@@ -412,6 +441,24 @@ export function initUI() {
   $('#view-deck-btn').addEventListener('click', renderDeckOverlay);
   $('#close-overlay-btn').addEventListener('click', () => $('#deck-overlay').classList.remove('active'));
   $('#skip-reward-btn').addEventListener('click', () => { advanceNode(); renderMap(); });
+
+  // Minimal, harmless debug seam used by the headless smoke test to re-render
+  // the combat view and play a card by hand index. Not referenced by gameplay.
+  // DEV-ONLY: only attach on a local dev/test origin (localhost / 127.0.0.1) or
+  // when the page is loaded with a `?debug` flag. This keeps it available for the
+  // headless smoke server (which serves on 127.0.0.1) while ensuring it never
+  // ships as live runtime code on the deployed S3 site.
+  if (typeof window !== 'undefined' && isDebugEnv()) {
+    window.__kat = {
+      render: renderCombat,
+      play: (handIndex, enemyIdx) => {
+        const c = state.combat;
+        const target = enemyIdx != null ? c.enemies[enemyIdx] : null;
+        Combat.playCard(handIndex, target, combatEvents);
+        renderCombat();
+      },
+    };
+  }
 
   showScreen('title-screen');
 }

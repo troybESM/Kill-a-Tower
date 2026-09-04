@@ -4,7 +4,9 @@
 
 This feature is a browser-based roguelike deckbuilder game — a personal-use clone of Slay the Spire 2 — that the player runs for enjoyment and to experiment with mechanic and content tweaks. The game runs entirely client-side with no server component and deploys as static files to an Amazon S3 static website bucket. It is built with vanilla HTML, CSS, and JavaScript with no framework and no build step. All game content (cards, enemies, relics, and map layout) is defined in data files so that gameplay values can be adjusted by editing data rather than code.
 
-This first version delivers a vertical slice: one playable character, a starter set of 15 to 20 cards, a small set of enemies, a single act with a short branching map ending in a boss, and a basic set of relics. The slice forms a complete, replayable run loop that can be expanded later.
+This first version delivers a vertical slice: one playable character, a starter set of 15 to 24 cards, a small set of enemies, a single act with a short branching map ending in a boss, and a basic set of relics. The slice forms a complete, replayable run loop that can be expanded later.
+
+> **Note (deliberate range change):** The card-count range in Requirement 4 was intentionally widened from an upper bound of 20 to **24** to accommodate the richer card set introduced with multi-hit, exhaust, retain, innate, conditional, and poison-payoff mechanics. The fail-to-start-outside-range semantics are unchanged; only the maximum was raised. The single source of truth in code is `CARD_COUNT_MAX` in `js/cards.js`.
 
 ## Glossary
 
@@ -76,8 +78,8 @@ This first version delivers a vertical slice: one playable character, a starter 
 #### Acceptance Criteria
 
 1. THE Game SHALL provide exactly one playable character that has a starting deck of between 8 and 12 cards and a starting hit point value between 50 and 100.
-2. THE Content_Data SHALL define between 15 and 20 distinct cards available in the Game, where each card has a unique identifier.
-3. IF the count of cards defined in Content_Data is less than 15 or greater than 20, THEN THE Game SHALL fail to start and present an error indicating the card count is outside the required range.
+2. THE Content_Data SHALL define between 15 and 24 distinct cards available in the Game, where each card has a unique identifier.
+3. IF the count of cards defined in Content_Data is less than 15 or greater than 24, THEN THE Game SHALL fail to start and present an error indicating the card count is outside the required range.
 4. THE Content_Data SHALL define at least 3 and at most 10 distinct enemies, where each enemy has a unique identifier.
 5. THE Content_Data SHALL define at least 1 and at most 3 boss enemies, where each boss enemy is distinct from the non-boss enemies defined in criterion 4.
 6. THE Content_Data SHALL define at least 3 and at most 10 distinct relics, where each relic has a unique identifier.

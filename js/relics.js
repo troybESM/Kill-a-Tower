@@ -46,9 +46,10 @@ export const RELIC_DB = {
 };
 
 // Return `count` random distinct relics for the starting-relic choice.
-export function randomRelicChoices(count = 5) {
+// Uses a seeded RNG (the run-level state.rng) for reproducibility.
+export function randomRelicChoices(rng, count = 5) {
   const ids = Object.keys(RELIC_DB);
-  const shuffled = [...ids].sort(() => Math.random() - 0.5);
+  const shuffled = rng.shuffle(ids);
   return shuffled.slice(0, count).map((id) => RELIC_DB[id]);
 }
 
