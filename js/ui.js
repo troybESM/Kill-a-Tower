@@ -96,7 +96,7 @@ function renderRelicChoice() {
   showScreen('relic-screen');
   const wrap = $('#relic-choices');
   wrap.innerHTML = '';
-  const choices = randomRelicChoices(5);
+  const choices = randomRelicChoices(state.rng, 5);
   for (const r of choices) {
     const card = el('div', 'relic-card', `
       <div class="relic-emoji">${r.emoji}</div>
@@ -118,8 +118,8 @@ let combatEvents = null;
 
 function startFight(fightIndex, isBoss) {
   let enemyIds;
-  if (isBoss) enemyIds = [randomBossId()];
-  else enemyIds = encounterForFight(fightIndex);
+  if (isBoss) enemyIds = [randomBossId(state.rng)];
+  else enemyIds = encounterForFight(fightIndex, state.rng);
 
   Combat.initCombat(enemyIds, isBoss);
   showScreen('combat-screen');
@@ -340,7 +340,7 @@ function endCombat(result) {
     return;
   }
   // heal a little + card reward
-  state.gold += 15 + Math.floor(Math.random() * 11);
+  state.gold += 15 + state.rng.int(11);
   renderReward();
 }
 
@@ -349,7 +349,7 @@ function renderReward() {
   const wrap = $('#reward-cards');
   wrap.innerHTML = '';
   // 3 random distinct reward cards
-  const pool = [...REWARD_POOL].sort(() => Math.random() - 0.5).slice(0, 3);
+  const pool = state.rng.shuffle(REWARD_POOL).slice(0, 3);
   pool.forEach((cardId) => {
     const card = getCard(cardId);
     const borderCls = card.type === 'attack' ? 'attack-border' : card.type === 'power' ? 'power-border' : 'skill-border';

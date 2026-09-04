@@ -97,18 +97,20 @@ export function makeEnemyInstance(id) {
   };
 }
 
-export function randomBossId() {
+// Selection uses a seeded RNG for reproducibility. Callers pass the run-level
+// rng (state.rng); it is a required argument so determinism stays threadable.
+export function randomBossId(rng) {
   const bosses = ['hexQueen', 'ironColossus'];
-  return bosses[Math.floor(Math.random() * bosses.length)];
+  return rng.pick(bosses);
 }
 
 // Encounters for the two fight nodes (single-enemy for the vertical slice,
 // with one dual-enemy possibility for variety).
-export function encounterForFight(index) {
+export function encounterForFight(index, rng) {
   if (index === 0) {
     const options = [['cultist'], ['spider']];
-    return options[Math.floor(Math.random() * options.length)];
+    return rng.pick(options);
   }
   const options = [['bruteGuard'], ['spider', 'spider']];
-  return options[Math.floor(Math.random() * options.length)];
+  return rng.pick(options);
 }

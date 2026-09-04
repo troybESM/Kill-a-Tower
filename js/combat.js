@@ -1,19 +1,9 @@
 // Combat engine for Kill a Tower.
 // UI-agnostic: it mutates state.combat and calls the provided `hooks` callbacks
 // so the renderer can animate/redraw. Returns control via those callbacks.
-import { state } from './state.js';
+import { state, combatRng } from './state.js';
 import { getCard } from './cards.js';
 import { makeEnemyInstance } from './enemies.js';
-
-// ---- helpers ----
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
 
 // Passive relic modifiers, summed across owned relics.
 function relicPassive(key) {
@@ -26,14 +16,18 @@ function relicPassive(key) {
 
 // ---- combat lifecycle ----
 export function initCombat(enemyIds, isBoss = false) {
+  // Per-combat deterministic RNG derived from the run seed + this node index,
+  // so a fight is reproducible given a fixed run seed.
+  const rng = combatRng(state.nodeIndex);
   const c = {
     isBoss,
+    rng,
     energy: state.maxEnergy,
     block: 0,
     statuses: { str: 0, dex: 0, weak: 0, vulnerable: 0 },
     powers: { noxious: 0 },       // player powers active this combat
     enemies: enemyIds.map(makeEnemyInstance),
-    drawPile: shuffle(state.deck),
+    drawPile: rng.shuffle(state.deck),
     hand: [],
     discardPile: [],
     exhaustPile: [],
@@ -60,7 +54,7 @@ function makeApi(events) {
     poisonRandomEnemy: (n) => {
       const alive = c.enemies.filter((e) => e.hp > 0);
       if (!alive.length) return;
-      const e = alive[Math.floor(Math.random() * alive.length)];
+      const e = c.rng.pick(alive);
       applyPoison(e, n, events);
     },
     // enemy-side (act on the player)
@@ -144,7 +138,7 @@ function drawCards(n, events) {
   for (let i = 0; i < n; i++) {
     if (c.drawPile.length === 0) {
       if (c.discardPile.length === 0) break;
-      c.drawPile = shuffle(c.discardPile);
+      c.drawPile = c.rng.shuffle(c.discardPile);
       c.discardPile = [];
     }
     const id = c.drawPile.pop();
