@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kill a Tower</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- Title screen -->
+    <div id="title-screen" class="screen active">
+      <div class="title-wrap">
+        <h1 class="game-title">KILL<span class="title-accent"> a </span>TOWER</h1>
+        <p class="tagline">A poison-fanged deckbuilder. Climb. Cut. Kill.</p>
+        <button id="start-btn" class="big-btn">Begin the Climb</button>
+        <p class="subtle">Playing as <strong>The Silent</strong> — poison &amp; slyness.</p>
+      </div>
+    </div>
+
+    <!-- Map screen -->
+    <div id="map-screen" class="screen">
+      <div class="topbar">
+        <div class="topbar-left">
+          <span class="hp-pill">❤ <span id="map-hp">70</span>/<span id="map-maxhp">70</span></span>
+          <span class="gold-pill">◈ <span id="map-gold">0</span></span>
+        </div>
+        <div class="topbar-right">
+          <div id="map-relics" class="relic-tray"></div>
+        </div>
+      </div>
+      <h2 class="screen-heading">The Tower</h2>
+      <div id="map-track" class="map-track"></div>
+      <div class="map-footer">
+        <button id="view-deck-btn" class="mini-btn">View Deck (<span id="deck-count">0</span>)</button>
+      </div>
+    </div>
+
+    <!-- Combat screen -->
+    <div id="combat-screen" class="screen">
+      <div class="topbar">
+        <div class="topbar-left">
+          <span class="hp-pill">❤ <span id="combat-hp">70</span>/<span id="combat-maxhp">70</span></span>
+          <span class="energy-pill">⚡ <span id="combat-energy">3</span>/<span id="combat-maxenergy">3</span></span>
+        </div>
+        <div class="topbar-right">
+          <div id="combat-relics" class="relic-tray"></div>
+        </div>
+      </div>
+
+      <div class="battlefield">
+        <div id="enemies" class="enemies"></div>
+      </div>
+
+      <div class="player-row">
+        <div class="player-avatar">
+          <div class="avatar-icon">🗡</div>
+          <div class="avatar-status" id="player-status"></div>
+          <div class="block-badge" id="player-block-badge" style="display:none;">🛡 <span id="player-block">0</span></div>
+        </div>
+      </div>
+
+      <div class="hand-area">
+        <div class="piles">
+          <div class="pile" id="draw-pile" title="Draw pile">🂠 <span id="draw-count">0</span></div>
+          <button id="end-turn-btn" class="end-turn-btn">End Turn</button>
+          <div class="pile" id="discard-pile" title="Discard pile">♻ <span id="discard-count">0</span></div>
+        </div>
+        <div id="hand" class="hand"></div>
+      </div>
+    </div>
+
+    <!-- Reward screen -->
+    <div id="reward-screen" class="screen">
+      <h2 class="screen-heading">Victory!</h2>
+      <p id="reward-sub" class="subtle">Choose a card to add to your deck.</p>
+      <div id="reward-cards" class="reward-cards"></div>
+      <button id="skip-reward-btn" class="mini-btn">Skip</button>
+    </div>
+
+    <!-- Relic choice screen -->
+    <div id="relic-screen" class="screen">
+      <h2 class="screen-heading">Starting Relic</h2>
+      <p class="subtle">Fate offers you a relic. Choose wisely — it defines your run.</p>
+      <div id="relic-choices" class="relic-choices"></div>
+    </div>
+
+    <!-- Game over screen -->
+    <div id="gameover-screen" class="screen">
+      <h2 id="gameover-title" class="screen-heading">Defeated</h2>
+      <p id="gameover-sub" class="subtle"></p>
+      <button id="restart-btn" class="big-btn">Climb Again</button>
+    </div>
+
+    <!-- Deck viewer overlay -->
+    <div id="deck-overlay" class="overlay">
+      <div class="overlay-inner">
+        <div class="overlay-head">
+          <h3 id="overlay-title">Your Deck</h3>
+          <button id="close-overlay-btn" class="mini-btn">Close</button>
+        </div>
+        <div id="overlay-cards" class="overlay-cards"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
