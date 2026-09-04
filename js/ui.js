@@ -19,6 +19,20 @@ function showScreen(id) {
   $('#' + id).classList.add('active');
 }
 
+// True only on a local dev/test origin or when explicitly opted-in via `?debug`.
+// Used to gate the window.__kat debug seam so it never attaches on the deployed
+// S3 site while remaining available to the headless smoke server (127.0.0.1).
+function isDebugEnv() {
+  try {
+    const host = window.location?.hostname || '';
+    const isLocal = host === 'localhost' || host === '127.0.0.1' || host === '[::1]' || host === '';
+    const hasDebugFlag = /(?:^|[?&])debug(?:=|&|$)/.test(window.location?.search || '');
+    return isLocal || hasDebugFlag;
+  } catch {
+    return false;
+  }
+}
+
 function toast(msg) {
   let t = $('#toast');
   if (!t) { t = el('div'); t.id = 'toast'; document.body.appendChild(t); }
@@ -430,7 +444,11 @@ export function initUI() {
 
   // Minimal, harmless debug seam used by the headless smoke test to re-render
   // the combat view and play a card by hand index. Not referenced by gameplay.
-  if (typeof window !== 'undefined') {
+  // DEV-ONLY: only attach on a local dev/test origin (localhost / 127.0.0.1) or
+  // when the page is loaded with a `?debug` flag. This keeps it available for the
+  // headless smoke server (which serves on 127.0.0.1) while ensuring it never
+  // ships as live runtime code on the deployed S3 site.
+  if (typeof window !== 'undefined' && isDebugEnv()) {
     window.__kat = {
       render: renderCombat,
       play: (handIndex, enemyIdx) => {

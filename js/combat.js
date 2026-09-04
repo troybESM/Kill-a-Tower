@@ -302,6 +302,11 @@ function applyEffectList(effects, target, api, events) {
       case 'damagePerPoison': {
         // Deal `per` damage for each poison stack on the target. Does NOT
         // consume the poison. Scales with str/vuln/weak like normal attacks.
+        // BLOCK INTERACTION (intended): this is an ATTACK-style payoff. It
+        // routes through dealDamageToEnemy and IS ABSORBED by enemy block, and
+        // is additionally scaled by playerAttackDamage (str/vuln/weak). This is
+        // deliberately DIFFERENT from the poison damage-over-time tick
+        // (tickPoison), which subtracts straight from hp and IGNORES block.
         if (target && target.statuses.poison > 0) {
           const base = (eff.per || 1) * target.statuses.poison;
           dealDamageToEnemy(target, playerAttackDamage(base, target), events);
@@ -310,9 +315,13 @@ function applyEffectList(effects, target, api, events) {
       }
       case 'detonatePoison': {
         // Deal damage equal to the target's poison stacks (times optional
-        // `mult`) then REMOVE all poison from the target. Poison detonation
-        // ignores block-scaling multipliers (it's raw poison), but still
-        // respects enemy block via dealDamageToEnemy.
+        // `mult`) then REMOVE all poison from the target.
+        // BLOCK INTERACTION (intended): detonation is an ATTACK-style payoff.
+        // It routes through dealDamageToEnemy and IS ABSORBED by enemy block
+        // (the raw poison total is not scaled by str/vuln/weak, but block still
+        // applies). This is deliberately DIFFERENT from the poison
+        // damage-over-time tick (tickPoison), which subtracts straight from hp
+        // and IGNORES block. Payoff attacks respect block; the DoT tick does not.
         if (target && target.statuses.poison > 0) {
           const dmg = target.statuses.poison * (eff.mult || 1);
           target.statuses.poison = 0;

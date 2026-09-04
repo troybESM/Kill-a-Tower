@@ -21,8 +21,11 @@
 //   { op:'poison', amount }              apply poison stacks to target
 //   { op:'poisonAll', amount }           apply poison to ALL enemies
 //   { op:'doublePoison' }                double the target's poison stacks
-//   { op:'damagePerPoison', per }        deal `per` damage per poison stack on target (does not consume)
-//   { op:'detonatePoison', mult }        deal (poison * mult) damage and REMOVE all target poison
+//   { op:'damagePerPoison', per }        deal `per` damage per poison stack on target (does not consume);
+//                                        ATTACK-style: IS absorbed by enemy block and scaled by str/vuln/weak
+//   { op:'detonatePoison', mult }        deal (poison * mult) damage and REMOVE all target poison;
+//                                        ATTACK-style: IS absorbed by enemy block (unlike the poison DoT tick,
+//                                        which subtracts straight from hp and IGNORES block)
 //   { op:'weak', amount }                apply weak to target
 //   { op:'weakAll', amount }             apply weak to ALL enemies
 //   { op:'vulnerable', amount }          apply vulnerable to target

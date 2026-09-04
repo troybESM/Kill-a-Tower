@@ -163,6 +163,37 @@ test('detonatePoison deals poison*mult then clears poison', () => {
   assert.ok((events._calls.onDetonate || []).length === 1);
 });
 
+// ---- poison-payoff vs enemy BLOCK (pinned interaction) ----
+// The poison DoT tick ignores block, but both poison PAYOFF ops (damagePerPoison
+// and detonatePoison) are ATTACK-style: they route through dealDamageToEnemy and
+// ARE absorbed by enemy block. These tests pin that intended asymmetry so a
+// future refactor of dealDamageToEnemy cannot silently change payoff totals.
+test('damagePerPoison is absorbed by enemy block', () => {
+  const { events } = freshCombat(['bruteGuard']);
+  const e = firstEnemy();
+  e.statuses.poison = 6;   // toxicPayoff = 2 dmg/poison -> 12 raw attack damage
+  e.block = 5;             // block absorbs 5, so only 7 reaches hp
+  const hp0 = e.hp;
+  loadHand(['toxicPayoff']);
+  Combat.playCard(0, e, events);
+  assert.equal(e.block, 0, 'block fully consumed by the payoff attack');
+  assert.equal(e.hp, hp0 - 7, 'only damage exceeding block reaches hp');
+  assert.equal(e.statuses.poison, 6, 'poison not consumed by damagePerPoison');
+});
+
+test('detonatePoison is absorbed by enemy block', () => {
+  const { events } = freshCombat(['bruteGuard']);
+  const e = firstEnemy();
+  e.statuses.poison = 5;   // venomBurst detonate mult 2 -> 10 raw damage
+  e.block = 4;             // block absorbs 4, so only 6 reaches hp
+  const hp0 = e.hp;
+  loadHand(['venomBurst']);
+  Combat.playCard(0, e, events);
+  assert.equal(e.block, 0, 'block fully consumed by the detonation attack');
+  assert.equal(e.hp, hp0 - 6, 'only damage exceeding block reaches hp');
+  assert.equal(e.statuses.poison, 0, 'poison cleared after detonation');
+});
+
 // ---- blockPerCardPlayed ----
 test('blockPerCardPlayed scales with cards played this turn', () => {
   const { events } = freshCombat(['cultist']);
