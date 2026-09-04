@@ -1,0 +1,104 @@
+name: PR Dev Preview to S3
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    branches: [main]
+
+concurrency:
+  group: dev-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+env:
+  AWS_REGION: us-east-1
+  S3_BUCKET: kill-a-tower
+
+jobs:
+  deploy-preview:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+
+      - name: Run tests (preview gate)
+        run: node --test
+
+      - name: Stamp cache-buster from commit SHA
+        run: |
+          SHA_SHORT="${GITHUB_SHA::7}"
+          echo "Stamping ?v=$SHA_SHORT into index.html"
+          sed -i -E "s/\?v=[A-Za-z0-9._-]+/?v=$SHA_SHORT/g" index.html
+          if grep -o "?v=$SHA_SHORT" index.html | head -1; then
+            echo "cache-buster stamped"
+          else
+            echo "no ?v= placeholder present in index.html; skipping stamp verification"
+          fi
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          role-session-name: gha-dev-preview-kill-a-tower
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy to S3 dev/ preview prefix
+        run: |
+          aws s3 sync . "s3://${S3_BUCKET}/dev/" \
+            --exclude ".*" \
+            --exclude ".git/*" \
+            --exclude ".github/*" \
+            --exclude ".agents/*" \
+            --exclude "*.md" \
+            --exclude "test/*" \
+            --exclude "package.json" \
+            --exclude "package-lock.json" \
+            --exclude "node_modules/*" \
+            --exclude "dev/*" \
+            --delete \
+            --cache-control "max-age=60"
+
+      - name: Summary
+        run: |
+          PREVIEW_URL="http://${S3_BUCKET}.s3-website-${AWS_REGION}.amazonaws.com/dev/"
+          echo "Deployed commit ${GITHUB_SHA::7} to s3://${S3_BUCKET}/dev/ (PR #${{ github.event.pull_request.number }} preview)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Preview: ${PREVIEW_URL}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comment preview URL on PR
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PREVIEW_URL="http://${S3_BUCKET}.s3-website-${AWS_REGION}.amazonaws.com/dev/"
+          gh pr comment "${{ github.event.pull_request.number }}" \
+            --body "Dev preview deployed: ${PREVIEW_URL} (commit ${GITHUB_SHA::7})" \
+            --repo "${{ github.repository }}" || echo "PR comment failed; continuing"
+
+  cleanup-preview:
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          role-session-name: gha-dev-preview-cleanup-kill-a-tower
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Remove dev/ preview prefix
+        run: |
+          aws s3 rm "s3://${S3_BUCKET}/dev/" --recursive
+
+      - name: Summary
+        run: |
+          echo "Cleaned up /dev preview for PR #${{ github.event.pull_request.number }} from s3://${S3_BUCKET}/dev/" >> "$GITHUB_STEP_SUMMARY"
