@@ -1,0 +1,26 @@
+# Dependencies (only if a test runner is added later; game itself has no build step)
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Test / coverage output
+coverage/
+.nyc_output/
+*.log
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+.vscode/
+
+# Environment / secrets
+.env
+.env.*
+
+# Build artifacts (none expected, but guard against accidental commits)
+dist/
+build/
